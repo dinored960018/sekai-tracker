@@ -20,24 +20,15 @@
   --out:#cf3059; --out-fill:#f0607f; --out-on:#3f0a18;
   --sans:"Wanted Sans Variable","Wanted Sans",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
   --num:"Martian Mono",ui-monospace,"SF Mono",Consolas,monospace;
-  --top-h:56px; --nav-h:54px; --bg-op:.09;
+  --top-h:56px; --nav-h:54px;
   color-scheme:light dark;
 }
 @media (prefers-color-scheme:dark){
   :root{
     --paper:#10131a; --surface:#181c26; --sunken:#141821;
     --ink:#e9ecf3; --sub:#929bb0; --faint:#5d667a; --line:#282e3c;
-    --in:#4bd8c6; --out:#ff7f99; --bg-op:.13;
+    --in:#4bd8c6; --out:#ff7f99;
   }
-}
-/* 배경 일러스트. 내용 위에 아주 옅게 얹어 카드 뒤로 비치는 것처럼 보이게 한다. 상단바·하단 탭보다는 아래. */
-body::after{content:"";position:fixed;right:max(0px,calc((100vw - 1180px)/2 - 150px));bottom:0;z-index:10;height:86vh;aspect-ratio:592/1500;background:url(img/akito.webp) no-repeat center bottom/contain;opacity:var(--bg-op);mix-blend-mode:multiply;pointer-events:none}
-@media (prefers-color-scheme:dark){
-  body::after{mix-blend-mode:screen}
-}
-@media (max-width:999px){
-  body::after{right:-2vw;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));height:62vh}
-  body[data-locked]::after{bottom:0}
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
@@ -56,7 +47,8 @@ h3{font-size:13px;font-weight:600;color:var(--sub)}
 .top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--paper) 86%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(12px);backdrop-filter:saturate(1.4) blur(12px);border-bottom:1px solid var(--line)}
 .top-in{max-width:1180px;margin:0 auto;height:var(--top-h);padding:0 14px;display:flex;align-items:center;justify-content:space-between;gap:12px}
 .brand{display:flex;align-items:center;gap:10px;min-width:0}
-.brand svg{flex:none}
+.avatar{flex:none;display:block;width:34px;height:34px;border-radius:22%;background:#ff7721;box-shadow:0 0 0 1px var(--line)}
+.gate-card .avatar{width:52px;height:52px}
 .brand h1{font-size:17px;font-weight:800;letter-spacing:-.025em;line-height:1.2;white-space:nowrap}
 .brand p{font-size:12px;color:var(--sub);line-height:1.2;white-space:nowrap}
 
@@ -152,7 +144,7 @@ body[data-tab="manage"] #p-manage{display:block}
 .field{display:grid;grid-template-columns:9px minmax(0,1fr) 112px;align-items:center;gap:9px;padding:3px 0;cursor:text}
 .field-name{font-size:14px;line-height:1.25}
 .field input{height:36px;font-size:13.5px}
-.entry-foot{position:sticky;z-index:11;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 16px;background:var(--surface);border-top:1px solid var(--line);border-radius:0 0 14px 14px}
+.entry-foot{position:sticky;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom));display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:12px 16px;background:var(--surface);border-top:1px solid var(--line);border-radius:0 0 14px 14px}
 .entry-foot p{flex-basis:100%;font-size:13px;color:var(--sub)}
 
 /* 색 점 */
@@ -258,10 +250,7 @@ tfoot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
 <div class="gate" id="gate" hidden>
   <form class="gate-card" id="gateForm">
     <div class="brand">
-      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-        <g fill="var(--in-fill)"><rect x="2" y="6" width="5" height="6" rx="2.5"/><rect x="10.5" y="1" width="5" height="11" rx="2.5"/><rect x="19" y="4" width="5" height="8" rx="2.5"/></g>
-        <g fill="var(--out-fill)"><rect x="2" y="14" width="5" height="5" rx="2.5"/><rect x="10.5" y="14" width="5" height="10" rx="2.5"/><rect x="19" y="14" width="5" height="6" rx="2.5"/></g>
-      </svg>
+      <img class="avatar" src="img/akito-icon.webp" width="52" height="52" alt="">
       <div>
         <h1>세카이 재화 기록</h1>
         <p>로그인하고 들어가기</p>
@@ -280,10 +269,7 @@ tfoot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
 <header class="top">
   <div class="top-in">
     <div class="brand">
-      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
-        <g fill="var(--in-fill)"><rect x="2" y="6" width="5" height="6" rx="2.5"/><rect x="10.5" y="1" width="5" height="11" rx="2.5"/><rect x="19" y="4" width="5" height="8" rx="2.5"/></g>
-        <g fill="var(--out-fill)"><rect x="2" y="14" width="5" height="5" rx="2.5"/><rect x="10.5" y="14" width="5" height="10" rx="2.5"/><rect x="19" y="14" width="5" height="6" rx="2.5"/></g>
-      </svg>
+      <img class="avatar" src="img/akito-icon.webp" width="34" height="34" alt="">
       <div>
         <h1>세카이 재화 기록</h1>
         <p>프로젝트 세카이 수급·소비 장부</p>
@@ -412,7 +398,7 @@ tfoot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
         <div class="block-head"><h2>로그인</h2><button class="btn" id="btnLogout" type="button">로그아웃</button></div>
         <p class="muted">로그인 유지를 켜고 들어오면 이 브라우저에서는 계속 열려 있어요. 끄고 들어오면 탭을 닫을 때 로그아웃돼요. 로그아웃해도 기록은 지워지지 않아요.</p>
       </div>
-      <p class="muted credit">비공식 팬 사이트입니다. 캐릭터 일러스트 © SEGA / © Colorful Palette Inc. / © Crypton Future Media, INC. www.piapro.net</p>
+      <p class="muted credit">비공식 팬 사이트입니다. 캐릭터 아이콘 © SEGA / © Colorful Palette Inc. / © Crypton Future Media, INC. www.piapro.net</p>
     </section>
   </div>
 </main>

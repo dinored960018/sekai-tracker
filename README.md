@@ -16,8 +16,8 @@
 - 기록: 날짜별 상세 기록과 삭제
 - 관리: 재화 이름·색 변경, 추가, 삭제, 백업·CSV 내보내기
 
-## 일러스트
+## 아이콘
 
-배경의 시노노메 아키토 일러스트(`img/akito.webp`)는 프로젝트 세카이 공식 사이트(pjsekai.sega.jp) 캐릭터 페이지의 그림을 여백만 잘라 줄인 것이다. 비공식 팬 사이트이며 일러스트의 권리는 원저작권자에게 있다.
+상단과 로그인 화면의 시노노메 아키토 아이콘(`img/akito-icon.webp`)은 프로젝트 세카이 공식 사이트(pjsekai.sega.jp) 캐릭터 페이지의 아이콘을 정사각형으로 잘라 줄인 것이다. 비공식 팬 사이트이며 그림의 권리는 원저작권자에게 있다.
 
 © SEGA / © Colorful Palette Inc. / © Crypton Future Media, INC. www.piapro.net
