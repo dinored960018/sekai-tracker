@@ -83,8 +83,9 @@ body[data-locked] .top,body[data-locked] .shell{display:none}
 .gate[hidden]{display:none}
 .gate-card{width:min(340px,100%);padding:24px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
 .gate-card .brand{margin-bottom:20px}
-.gate-card input{margin-bottom:12px}
-.gate-card .btn{width:100%;margin-top:4px}
+.gate-card input[type=text],.gate-card input[type=password]{margin-bottom:12px}
+.gate-keep{margin:2px 0 14px;color:var(--ink)}
+.gate-card .btn{width:100%}
 .gate-card .btn:disabled{opacity:.6;cursor:default}
 .gate-msg{min-height:20px;margin-top:10px;font-size:13px;color:var(--out)}
 
@@ -249,6 +250,7 @@ tfoot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
     <input type="text" id="gId" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
     <label class="lbl" for="gPw">비밀번호</label>
     <input type="password" id="gPw" name="password" autocomplete="current-password" required>
+    <label class="check gate-keep"><input type="checkbox" id="gKeep" checked>로그인 유지</label>
     <button class="btn primary" id="gBtn" type="submit">들어가기</button>
     <p class="gate-msg" id="gMsg" role="alert"></p>
   </form>
@@ -380,7 +382,7 @@ tfoot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
       </div>
       <div class="block">
         <div class="block-head"><h2>로그인</h2><button class="btn" id="btnLogout" type="button">로그아웃</button></div>
-        <p class="muted">한 번 로그인하면 이 브라우저에서는 계속 열려 있어요. 로그아웃해도 기록은 지워지지 않아요.</p>
+        <p class="muted">로그인 유지를 켜고 들어오면 이 브라우저에서는 계속 열려 있어요. 끄고 들어오면 탭을 닫을 때 로그아웃돼요. 로그아웃해도 기록은 지워지지 않아요.</p>
       </div>
     </section>
   </div>
@@ -830,7 +832,9 @@ $('gateForm').onsubmit=async e=>{
   try{
     const t=await deriveToken($('gId').value,$('gPw').value);
     if(await tokenOk(t)){
-      try{localStorage.setItem(AUTH_KEY,t);}catch(err){}
+      // 유지를 켜면 브라우저에 계속 남기고, 끄면 이 탭을 닫을 때까지만 둔다
+      const keep=$('gKeep').checked;
+      try{(keep?localStorage:sessionStorage).setItem(AUTH_KEY,t);(keep?sessionStorage:localStorage).removeItem(AUTH_KEY);}catch(err){}
       $('gPw').value='';
       startApp();
     }else{
@@ -841,12 +845,12 @@ $('gateForm').onsubmit=async e=>{
   btn.disabled=false;btn.textContent='들어가기';
 };
 $('btnLogout').onclick=()=>{
-  try{localStorage.removeItem(AUTH_KEY);}catch(e){}
+  try{localStorage.removeItem(AUTH_KEY);sessionStorage.removeItem(AUTH_KEY);}catch(e){}
   location.reload();
 };
 (async()=>{
   let t=null;
-  try{t=localStorage.getItem(AUTH_KEY);}catch(e){}
+  try{t=localStorage.getItem(AUTH_KEY)||sessionStorage.getItem(AUTH_KEY);}catch(e){}
   if(await tokenOk(t).catch(()=>false)) return startApp();
   $('gate').hidden=false;
   $('gId').focus();
