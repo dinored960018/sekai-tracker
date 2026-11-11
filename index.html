@@ -53,9 +53,9 @@ h3{font-size:13px;font-weight:600;color:var(--sub)}
 
 /* 폼 요소 */
 input,select,button{font:inherit;color:inherit}
-input[type=text],input[type=date],input[type=number],select{height:40px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);min-width:0;width:100%}
+input[type=text],input[type=password],input[type=date],input[type=number],select{height:40px;padding:0 12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);min-width:0;width:100%}
 input::placeholder{color:var(--faint)}
-input[type=text]:focus,input[type=date]:focus,input[type=number]:focus,select:focus{outline:0;border-color:var(--mode-fill,var(--in-fill));box-shadow:0 0 0 3px color-mix(in srgb,var(--mode-fill,var(--in-fill)) 24%,transparent)}
+input[type=text]:focus,input[type=password]:focus,input[type=date]:focus,input[type=number]:focus,select:focus{outline:0;border-color:var(--mode-fill,var(--in-fill));box-shadow:0 0 0 3px color-mix(in srgb,var(--mode-fill,var(--in-fill)) 24%,transparent)}
 select{appearance:none;-webkit-appearance:none;width:auto;max-width:100%;padding-right:32px;font-weight:600;cursor:pointer;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238a93a6' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
 input[type=number]{-moz-appearance:textfield;appearance:textfield;text-align:right}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
@@ -76,6 +76,17 @@ input[type=color]::-moz-color-swatch{border:0;border-radius:5px}
 .btn.small{height:30px;padding:0 10px;font-size:13px}
 .btn.danger{color:var(--faint)}
 .btn.danger:hover,.btn.danger:focus-visible{color:var(--out)}
+
+/* 잠금 화면 */
+body[data-locked] .top,body[data-locked] .shell{display:none}
+.gate{--mode-fill:var(--in-fill);--mode-on:var(--in-on);min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:20px}
+.gate[hidden]{display:none}
+.gate-card{width:min(340px,100%);padding:24px;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.gate-card .brand{margin-bottom:20px}
+.gate-card input{margin-bottom:12px}
+.gate-card .btn{width:100%;margin-top:4px}
+.gate-card .btn:disabled{opacity:.6;cursor:default}
+.gate-msg{min-height:20px;margin-top:10px;font-size:13px;color:var(--out)}
 
 /* 뼈대 */
 .shell{max-width:1180px;margin:0 auto;padding:14px 12px calc(var(--nav-h) + 24px + env(safe-area-inset-bottom))}
@@ -220,7 +231,28 @@ tfoot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
 }
 </style>
 </head>
-<body data-tab="entry">
+<body data-tab="entry" data-locked>
+
+<div class="gate" id="gate" hidden>
+  <form class="gate-card" id="gateForm">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" aria-hidden="true">
+        <g fill="var(--in-fill)"><rect x="2" y="6" width="5" height="6" rx="2.5"/><rect x="10.5" y="1" width="5" height="11" rx="2.5"/><rect x="19" y="4" width="5" height="8" rx="2.5"/></g>
+        <g fill="var(--out-fill)"><rect x="2" y="14" width="5" height="5" rx="2.5"/><rect x="10.5" y="14" width="5" height="10" rx="2.5"/><rect x="19" y="14" width="5" height="6" rx="2.5"/></g>
+      </svg>
+      <div>
+        <h1>세카이 재화 기록</h1>
+        <p>로그인하고 들어가기</p>
+      </div>
+    </div>
+    <label class="lbl" for="gId">아이디</label>
+    <input type="text" id="gId" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+    <label class="lbl" for="gPw">비밀번호</label>
+    <input type="password" id="gPw" name="password" autocomplete="current-password" required>
+    <button class="btn primary" id="gBtn" type="submit">들어가기</button>
+    <p class="gate-msg" id="gMsg" role="alert"></p>
+  </form>
+</div>
 
 <header class="top">
   <div class="top-in">
@@ -345,6 +377,10 @@ tfoot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
           <input type="file" id="fileImport" accept=".json" hidden>
         </div>
         <p class="muted note">기록은 이 브라우저에만 저장돼요. 기기를 바꾸거나 브라우저 데이터를 지우기 전에 JSON 백업을 받아 두세요.</p>
+      </div>
+      <div class="block">
+        <div class="block-head"><h2>로그인</h2><button class="btn" id="btnLogout" type="button">로그아웃</button></div>
+        <p class="muted">한 번 로그인하면 이 브라우저에서는 계속 열려 있어요. 로그아웃해도 기록은 지워지지 않아요.</p>
       </div>
     </section>
   </div>
@@ -660,7 +696,7 @@ function setTab(t,scroll){
 
 /* ---------- 이벤트 ---------- */
 document.querySelector('.tabs').onclick=e=>{const b=e.target.closest('.tab');if(b)setTab(b.dataset.tab,true);};
-wideMq.addEventListener('change',()=>setTab(ui.tab));
+wideMq.addEventListener('change',()=>{if(db)setTab(ui.tab);});
 window.addEventListener('resize',()=>{const w=$('chart').clientWidth;if(w&&w!==chartW)renderFocus();});
 
 document.querySelectorAll('input[name=fType]').forEach(r=>r.onchange=renderRoutes);
@@ -761,12 +797,60 @@ $('fileImport').onchange=e=>{
   r.readAsText(f);e.target.value='';
 };
 
-load();
-$('fDate').value=todayStr();
-renderAll();
-let startTab=null;
-try{startTab=sessionStorage.getItem('sekai-tracker-tab');}catch(e){}
-setTab(startTab||(wideMq.matches?'summary':'entry'));
+/* ---------- 로그인 ----------
+   비밀번호 원문은 어디에도 없다. 아이디+비밀번호를 PBKDF2로 늘린 값의 SHA-256만 비교한다.
+   정적 페이지라 화면을 가리는 잠금일 뿐이고, 기록은 원래 각자 브라우저에만 있다. */
+const AUTH_KEY='sekai-tracker-auth';
+const AUTH={salt:'ab69ce83b3bc682b04729d47f60a81e8',iter:310000,verify:'f3984c0b0d4e6c799d0042130f1c4128daa862aae744e2d046459d5c2eb48d8c'};
+const hex=b=>[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+const unhex=s=>new Uint8Array((s.match(/../g)||[]).map(h=>parseInt(h,16)));
+async function deriveToken(id,pw){
+  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(id.trim().toLowerCase()+'\n'+pw),'PBKDF2',false,['deriveBits']);
+  return hex(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:unhex(AUTH.salt),iterations:AUTH.iter},key,256));
+}
+async function tokenOk(t){
+  if(!/^[0-9a-f]{64}$/.test(t||'')) return false;
+  return hex(await crypto.subtle.digest('SHA-256',unhex(t)))===AUTH.verify;
+}
+function startApp(){
+  document.body.removeAttribute('data-locked');
+  $('gate').hidden=true;
+  load();
+  $('fDate').value=todayStr();
+  renderAll();
+  let startTab=null;
+  try{startTab=sessionStorage.getItem('sekai-tracker-tab');}catch(e){}
+  setTab(startTab||(wideMq.matches?'summary':'entry'));
+}
+$('gateForm').onsubmit=async e=>{
+  e.preventDefault();
+  const btn=$('gBtn');
+  btn.disabled=true;btn.textContent='확인하는 중';
+  $('gMsg').textContent='';
+  try{
+    const t=await deriveToken($('gId').value,$('gPw').value);
+    if(await tokenOk(t)){
+      try{localStorage.setItem(AUTH_KEY,t);}catch(err){}
+      $('gPw').value='';
+      startApp();
+    }else{
+      $('gMsg').textContent='아이디 또는 비밀번호가 맞지 않아요.';
+      $('gPw').value='';$('gPw').focus();
+    }
+  }catch(err){$('gMsg').textContent='이 브라우저에서는 로그인을 확인할 수 없어요. https 주소로 열어 주세요.';}
+  btn.disabled=false;btn.textContent='들어가기';
+};
+$('btnLogout').onclick=()=>{
+  try{localStorage.removeItem(AUTH_KEY);}catch(e){}
+  location.reload();
+};
+(async()=>{
+  let t=null;
+  try{t=localStorage.getItem(AUTH_KEY);}catch(e){}
+  if(await tokenOk(t).catch(()=>false)) return startApp();
+  $('gate').hidden=false;
+  $('gId').focus();
+})();
 </script>
 </body>
 </html>
