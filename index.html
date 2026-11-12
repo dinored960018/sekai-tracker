@@ -117,14 +117,16 @@ body[data-tab="manage"] #p-manage{display:block}
 /* 입력 */
 .entry{padding:0;--mode:var(--in);--mode-fill:var(--in-fill);--mode-on:var(--in-on)}
 .entry[data-type="out"]{--mode:var(--out);--mode-fill:var(--out-fill);--mode-on:var(--out-on)}
-.entry[data-type="base"]{--mode:var(--ink);--mode-fill:var(--ink);--mode-on:var(--paper)}
+.entry[data-type="base"],.entry[data-type="hold"]{--mode:var(--ink);--mode-fill:var(--ink);--mode-on:var(--paper)}
 .entry[data-type="base"] .meta,.entry[data-type="base"] #btnClear{display:none}
-.base-hint{display:none;margin-bottom:10px}
-.entry[data-type="base"] .base-hint{display:block}
+.mode-hint{margin-bottom:10px}
+.mode-hint:empty{display:none}
+.bal{display:block;margin-top:2px;font-size:11.5px;color:var(--faint)}
+.bal .num{font-size:11px}
 .entry-head{padding:16px 16px 0}
 .entry-head h2{margin-bottom:12px}
 .entry-body{padding:12px 16px 4px}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:3px;padding:3px;background:var(--sunken);border:1px solid var(--line);border-radius:11px}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;padding:3px;background:var(--sunken);border:1px solid var(--line);border-radius:11px}
 .seg label{position:relative;display:flex;align-items:center;justify-content:center;gap:6px;height:36px;border-radius:8px;font-weight:600;color:var(--sub);cursor:pointer}
 .seg input{position:absolute;opacity:0;pointer-events:none}
 .seg label:has(input:checked){background:var(--surface);color:var(--mode);box-shadow:0 1px 2px rgb(10 20 40/.12)}
@@ -282,17 +284,18 @@ tfoot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
 <main class="shell">
 
   <!-- 입력 -->
-  <section id="p-entry" class="panel block entry" data-type="in" aria-labelledby="h-entry">
+  <section id="p-entry" class="panel block entry" data-type="hold" aria-labelledby="h-entry">
     <div class="entry-head">
       <h2 id="h-entry">기록 입력</h2>
       <div class="seg" role="radiogroup" aria-label="구분">
-        <label><input type="radio" name="fType" value="in" checked>수급 <span class="num">+</span></label>
+        <label><input type="radio" name="fType" value="hold" checked>보유량</label>
+        <label><input type="radio" name="fType" value="in">수급 <span class="num">+</span></label>
         <label><input type="radio" name="fType" value="out">소비 <span class="num">−</span></label>
         <label><input type="radio" name="fType" value="base">기존</label>
       </div>
     </div>
     <div class="entry-body">
-      <p class="base-hint muted">기록을 시작하기 전에 갖고 있던 수량을 적어 주세요. 현재 보유량은 기존 + 수급 − 소비로 계산해요.</p>
+      <p class="mode-hint muted" id="modeHint"></p>
       <div class="meta">
         <div><label class="lbl" for="fDate">날짜</label><input type="date" id="fDate"></div>
         <div><label class="lbl" for="fRoute">경로 (직접 입력 가능)</label><input type="text" id="fRoute" list="routeList" placeholder="예: 이벤트" maxlength="30" autocomplete="off"></div>
@@ -304,7 +307,7 @@ tfoot td{font-weight:700;border-top:1.5px solid var(--ink);border-bottom:0}
     <div class="entry-foot">
       <button class="btn primary" id="btnAdd" type="button">기록 추가</button>
       <button class="btn quiet" id="btnClear" type="button">비우기</button>
-      <p id="addMsg" role="status">수량을 넣은 재화만 기록돼요.</p>
+      <p id="addMsg" role="status"></p>
     </div>
   </section>
 
@@ -441,7 +444,15 @@ const TABS=['entry','summary','trend','log','manage'];
 const WD=['일','월','화','수','목','금','토'];
 
 let db;
-const ui={openGroups:new Set(['크리스탈','코인','피스','젬']),group:'',tab:'entry',type:'in',draft:{}};
+const MODE_KEY='sekai-tracker-mode';
+const NO_HOLD='크리스탈'; // 보유량 입력에서 빼는 그룹. 수급·소비를 직접 적는다.
+const HINTS={
+  hold:'지금 갖고 있는 수량을 적으면 지난 기록과의 차이를 수급·소비로 자동 기록해요. 크리스탈은 수급·소비에서 직접 적어 주세요.',
+  base:'기록을 시작하기 전에 갖고 있던 수량을 적어 주세요. 현재 보유량은 기존 + 수급 − 소비로 계산해요.'
+};
+const IDLE_MSG={hold:'바뀐 재화만 적으면 돼요.',in:'수량을 넣은 재화만 기록돼요.',out:'수량을 넣은 재화만 기록돼요.',base:'적는 대로 바로 저장돼요.'};
+// type: hold(지금 가진 수량) | in | out | base(기록 전 수량). drafts: 쓰던 값을 종류별로 따로 간직.
+const ui={openGroups:new Set(['크리스탈','코인','피스','젬']),group:'',tab:'entry',type:'hold',drafts:{amt:{},hold:{}},net:{},bal:{}};
 let chartCtx=null, chartW=0;
 const wideMq=window.matchMedia('(min-width:1000px)');
 const $=id=>document.getElementById(id);
@@ -526,48 +537,89 @@ const emptyRow=(n,t)=>`<tr><td colspan="${n}" class="empty">${t}</td></tr>`;
 
 /* ---------- 렌더 ---------- */
 function readInputs(){const o={};document.querySelectorAll('#fInputs input').forEach(i=>o[i.dataset.cid]=i.value);return o;}
-function fillInputs(get){document.querySelectorAll('#fInputs input').forEach(i=>i.value=get(i.dataset.cid)||'');}
+const kindOf=t=>t==='base'?'base':t==='hold'?'hold':'amt';
+function syncDraft(){const k=kindOf(ui.type);if(k!=='base'&&$('fInputs').firstChild)ui.drafts[k]=readInputs();}
+// 재화별 누적 증감(net)과 현재 보유(bal = 기존 + 수급 − 소비)
+function refreshBalances(){
+  const a=agg(db.entries);ui.net={};ui.bal={};
+  db.currencies.forEach(c=>{const x=a[c.id]||{in:0,out:0};ui.net[c.id]=x.in-x.out;ui.bal[c.id]=baseOf(c.id)+x.in-x.out;});
+}
+const holdValue=i=>{const s=i.value.trim();if(s==='')return null;const v=parseInt(s,10);return isNaN(v)?null:Math.abs(v);};
+// 지금 가진 수량 C를 받아 무엇을 기록할지 정한다.
+// 기존을 한 번도 정하지 않은 재화는 첫 입력을 기존으로 삼는다 (갑자기 큰 수급이 찍히지 않게).
+function holdPlan(id,C){
+  const net=ui.net[id]||0;
+  if(!(id in db.base)) return C>=net?{kind:'base',base:C-net}:{kind:'out',amount:net-C,base:0};
+  const d=C-(baseOf(id)+net);
+  return d>0?{kind:'in',amount:d}:d<0?{kind:'out',amount:-d}:{kind:'same'};
+}
 function renderInputs(){
-  const keep=ui.type==='base'?Object.fromEntries(db.currencies.map(c=>[c.id,baseOf(c.id)||''])):readInputs();
+  const k=kindOf(ui.type),hold=k==='hold';
+  refreshBalances();
+  const vals=k==='base'?Object.fromEntries(db.currencies.map(c=>[c.id,baseOf(c.id)||''])):ui.drafts[k];
   let h='';
   GROUPS.forEach(g=>{
-    const cs=groupCurs(g); if(!cs.length) return;
+    const cs=groupCurs(g); if(!cs.length||(hold&&g===NO_HOLD)) return;
     h+=`<details class="grp" data-g="${esc(g)}" ${ui.openGroups.has(g)?'open':''}><summary><span class="grp-name">${esc(g)}</span><span class="grp-count"></span></summary><div class="fields">`+
-      cs.map(c=>`<label class="field">${chip(c)}<span class="field-name">${esc(c.name)}</span><input class="num" type="number" inputmode="numeric" min="0" step="1" data-cid="${esc(c.id)}" placeholder="0" value="${esc(keep[c.id]||'')}"></label>`).join('')+
+      cs.map(c=>`<label class="field">${chip(c)}<span class="field-name">${esc(c.name)}${hold?'<small class="bal"></small>':''}</span><input class="num" type="number" inputmode="numeric" min="0" step="1" data-cid="${esc(c.id)}" placeholder="0" value="${esc(vals[c.id]??'')}"></label>`).join('')+
       '</div></details>';
   });
   $('fInputs').innerHTML=h;
   updateCounts();
 }
 function updateCounts(){
+  const t=typeVal(),hold=t==='hold';
   let total=0;
   document.querySelectorAll('#fInputs .grp').forEach(d=>{
-    const all=[...d.querySelectorAll('input')],n=all.filter(filled).length,el=d.querySelector('.grp-count');
+    const all=[...d.querySelectorAll('input')];let n=0;
+    all.forEach(i=>{
+      if(!hold){if(filled(i))n++;return;}
+      // 보유량 칸: 지금 기록상 보유와, 적은 값과의 차이를 이름 아래에 보여 준다
+      const id=i.dataset.cid,C=holdValue(i),el=i.closest('.field').querySelector('.bal');
+      let s=`보유 <span class="num">${plain(ui.bal[id]||0)}</span>`;
+      i.placeholder=String(ui.bal[id]||0);
+      if(C!==null){
+        const p=holdPlan(id,C);
+        if(p.kind==='same') s+=' · 변동 없음';
+        else{
+          n++;
+          s+=p.kind==='base'?' · 처음이라 기존으로 저장':` <span class="num ${p.kind==='in'?'pos':'neg'}">${p.kind==='in'?'+':'−'}${fmt(p.amount)}</span>`;
+        }
+      }
+      if(el)el.innerHTML=s;
+    });
     total+=n;
-    el.textContent=n?`${n}개 입력`:`${all.length}종`;
+    const el=d.querySelector('.grp-count');
+    el.textContent=n?`${n}개 ${hold?'변동':'입력'}`:`${all.length}종`;
     el.classList.toggle('on',n>0);
   });
-  const t=typeVal();
-  $('btnAdd').textContent=t==='base'?'기존 재화 저장':(total?`${typeName(t)} ${total}건 기록`:'기록 추가');
+  $('btnAdd').textContent=t==='base'?'기존 재화 저장':(total?`${hold?'보유량':typeName(t)} ${total}건 기록`:'기록 추가');
 }
 function renderRoutes(){
   const t=typeVal();
   if(t!==ui.type){
-    // 기존 칸으로 들어갈 때는 쓰던 수량을 잠깐 치워 두고, 나올 때 되돌린다
-    if(t==='base'){ui.draft=readInputs();fillInputs(baseOf);}
-    else if(ui.type==='base') fillInputs(id=>ui.draft[id]);
+    syncDraft(); // 수급·소비에 쓰던 값과 보유량에 쓰던 값은 따로 간직했다가 돌아오면 되살린다
     ui.type=t;
-    $('addMsg').textContent=t==='base'?'적는 대로 바로 저장돼요.':'수량을 넣은 재화만 기록돼요.';
+    if(t!=='base'){try{localStorage.setItem(MODE_KEY,t);}catch(e){}}
+    $('addMsg').textContent=IDLE_MSG[t];
+    $('p-entry').dataset.type=t;
+    renderInputs();
   }
   $('p-entry').dataset.type=t;
-  $('routeList').innerHTML=(ROUTES[t]||[]).map(r=>`<option value="${esc(r)}">`).join('');
+  $('modeHint').textContent=HINTS[t]||'';
+  const routes=t==='hold'?[...new Set([...ROUTES.in,...ROUTES.out])]:(ROUTES[t]||[]);
+  $('routeList').innerHTML=routes.map(r=>`<option value="${esc(r)}">`).join('');
   updateCounts();
 }
 function saveBase(){
   const b={};
-  document.querySelectorAll('#fInputs input').forEach(i=>{const v=Math.abs(parseInt(i.value,10));if(v>0)b[i.dataset.cid]=v;});
-  db.base=b;save();renderHoldLine();renderHold();
-  return Object.keys(b).length;
+  document.querySelectorAll('#fInputs input').forEach(i=>{
+    const id=i.dataset.cid,v=Math.abs(parseInt(i.value,10));
+    if(v>0)b[id]=v;
+    else if(id in db.base)b[id]=0; // 한 번 정한 재화는 0이어도 정한 것으로 남긴다
+  });
+  db.base=b;save();refreshBalances();renderHoldLine();renderHold();
+  return Object.values(b).filter(v=>v>0).length;
 }
 function renderSelectors(){
   const now=todayStr().slice(0,7),p=$('period').value||now;
@@ -636,7 +688,7 @@ function renderHold(){
       h+=`<tr><td>${chip(c)}${esc(c.name)}</td><td class="n">${b?fmt(b):DASH}</td><td class="n ${netCls(n)}">${n?signed(n):DASH}</td><td class="n ${b+n<0?'neg':''}"><b>${plain(b+n)}</b></td></tr>`;
     });
   });
-  if(!any) h+=emptyRow(4,'입력에서 기존을 골라 갖고 있던 수량을 적으면 현재 보유량이 나와요.');
+  if(!any) h+=emptyRow(4,'입력의 보유량에 지금 갖고 있는 수량을 적으면 여기에 나와요.');
   $('holdTable').innerHTML=h+'</tbody>';
 }
 function renderFocus(){
@@ -724,7 +776,7 @@ function renderLog(){
   es.slice(0,300).forEach(e=>{
     const c=cm[e.cid],isIn=e.type==='in';
     if(e.date!==last){h+=(last===null?'':'</ul>')+`<h3 class="day-h">${esc(dayLabel(e.date,all))}</h3><ul class="log">`;last=e.date;}
-    const meta=[e.route,e.memo].filter(Boolean).map(esc).join(' · ');
+    const meta=[e.route,e.memo,e.auto&&'보유량 입력'].filter(Boolean).map(esc).join(' · ');
     h+=`<li>${chip(c)}<div><div class="log-name">${esc(c.name)}</div>${meta?`<div class="log-meta">${meta}</div>`:''}</div><span class="num ${isIn?'pos':'neg'}">${isIn?'+':'−'}${fmt(e.amount)}</span><button class="btn small quiet danger" type="button" data-del="${esc(e.id)}" aria-label="${esc(c.name)} ${isIn?'수급':'소비'} ${fmt(e.amount)} 기록 삭제">삭제</button></li>`;
   });
   if(last!==null) h+='</ul>';
@@ -742,8 +794,8 @@ function renderCurList(){
   $('curList').innerHTML=h;
 }
 
-function renderData(){renderSum();renderFocus();renderHold();renderTrend();renderDaily();renderLog();}
-function renderAll(){renderInputs();renderRoutes();renderSelectors();renderCurList();renderData();}
+function renderData(){refreshBalances();updateCounts();renderSum();renderFocus();renderHold();renderTrend();renderDaily();renderLog();}
+function renderAll(){syncDraft();renderInputs();renderRoutes();renderSelectors();renderCurList();renderData();}
 
 function setTab(t,scroll){
   ui.tab=TABS.includes(t)?t:'summary';
@@ -765,19 +817,40 @@ $('fInputs').addEventListener('toggle',e=>{const g=e.target.dataset&&e.target.da
 $('fInputs').addEventListener('input',()=>{if(ui.type==='base')saveBase();updateCounts();});
 
 $('btnAdd').onclick=()=>{
-  if(typeVal()==='base'){$('addMsg').textContent=`기존 재화 ${saveBase()}종을 저장했어요.`;return;}
-  const date=$('fDate').value||todayStr(),type=typeVal(),route=$('fRoute').value.trim(),memo=$('fMemo').value.trim();
-  let n=0;
-  document.querySelectorAll('#fInputs input').forEach(i=>{
-    const v=Math.abs(parseInt(i.value,10));
-    if(!isNaN(v)&&v>0){db.entries.push({id:uid(),date,cid:i.dataset.cid,type,amount:v,route,memo,ts:Date.now()+n});n++;}
-  });
-  if(!n){$('addMsg').textContent='수량을 하나 이상 넣어 주세요.';return;}
+  const type=typeVal();
+  if(type==='base'){$('addMsg').textContent=`기존 재화 ${saveBase()}종을 저장했어요.`;return;}
+  const date=$('fDate').value||todayStr(),route=$('fRoute').value.trim(),memo=$('fMemo').value.trim();
+  let msg;
+  if(type==='hold'){
+    // 적은 값 C와 기록상 보유 A의 차이 B를 수급·소비로 남긴다
+    refreshBalances();
+    let ni=0,no=0,nb=0,k=0;
+    document.querySelectorAll('#fInputs input').forEach(i=>{
+      const C=holdValue(i);if(C===null)return;
+      const id=i.dataset.cid,p=holdPlan(id,C);
+      if('base' in p)db.base[id]=p.base;
+      if(p.kind==='base'){nb++;return;}
+      if(p.kind==='same')return;
+      db.entries.push({id:uid(),date,cid:id,type:p.kind,amount:p.amount,route,memo,ts:Date.now()+k,auto:true});k++;
+      if(p.kind==='in')ni++;else no++;
+    });
+    if(!ni&&!no&&!nb){$('addMsg').textContent='바뀐 수량이 없어요. 지금 갖고 있는 수량을 적어 주세요.';return;}
+    const rec=[ni&&`수급 ${ni}건`,no&&`소비 ${no}건`].filter(Boolean).join(', ');
+    msg=[rec&&`${dayLabel(date)} ${rec}을 기록했어요.`,nb&&`처음 적은 ${nb}종은 기존으로 저장했어요.`].filter(Boolean).join(' ');
+  }else{
+    let n=0;
+    document.querySelectorAll('#fInputs input').forEach(i=>{
+      const v=Math.abs(parseInt(i.value,10));
+      if(!isNaN(v)&&v>0){db.entries.push({id:uid(),date,cid:i.dataset.cid,type,amount:v,route,memo,ts:Date.now()+n});n++;}
+    });
+    if(!n){$('addMsg').textContent='수량을 하나 이상 넣어 주세요.';return;}
+    msg=`${dayLabel(date)} ${typeName(type)} ${n}건을 기록했어요.`;
+  }
   save();
-  document.querySelectorAll('#fInputs input').forEach(i=>i.value='');
+  ui.drafts[kindOf(type)]={};
   $('fMemo').value='';
-  updateCounts();
-  $('addMsg').textContent=`${dayLabel(date)} ${typeName(type)} ${n}건을 기록했어요.`;
+  renderInputs();
+  $('addMsg').textContent=msg;
   renderSelectors();renderData();
 };
 $('btnClear').onclick=()=>{document.querySelectorAll('#fInputs input').forEach(i=>i.value='');$('fMemo').value='';updateCounts();};
@@ -879,6 +952,10 @@ function startApp(){
   $('gate').hidden=true;
   load();
   $('fDate').value=todayStr();
+  let mode=null;
+  try{mode=localStorage.getItem(MODE_KEY);}catch(e){}
+  if(['hold','in','out'].includes(mode)){ui.type=mode;document.querySelector(`input[name=fType][value=${mode}]`).checked=true;}
+  $('addMsg').textContent=IDLE_MSG[ui.type];
   renderAll();
   let startTab=null;
   try{startTab=sessionStorage.getItem('sekai-tracker-tab');}catch(e){}
